@@ -1,0 +1,51 @@
+-- chương 12 tạo bảng để xem mà ko làm thay đổi dữ liệu bên trong
+use ap_1;
+-- Bài 1: Gọi tên nhà cung cấp , thứ tự hóa đơn , tổng hóa đơn , tổng tiền còn nợ 
+
+drop view if exists open_items ;
+create view open_items 
+as select vendor_name , invoice_number , invoice_total , (invoice_total - payment_total - credit_total ) as balance_due 
+from invoices as i 
+join vendors as v on v.vendor_id = i.vendor_id 
+where invoice_total - payment_total - credit_total  >0 
+order by vendor_name;  
+select * from open_items ;
+
+
+-- bài 2  Liệt kê những đối tượng trong bảng open_items có hóa đơn chưa trả trên 1000$ 
+select * 
+from open_items 
+where balance_due > 1000 ; 
+
+-- bài 3 tạo bảng xem có tên là open_items_summary kha báo tên nhà cũng cấp , đếm số tiền nợ , tổng 
+drop view if exists open_items_summary; 
+create view open_items_summary
+as select vendor_name , count(*) as open_items_count , sum(balance_due) as open_items_total 
+from open_items 
+group by vendor_name 
+order by open_items_total desc; 
+
+select * from open_items_summary ;
+
+-- bài 4 viết ra 5 hàng đầu tiên của  bài 3 
+select * from open_items_summary 
+limit 5; 
+
+-- bài 5 tạo bảng view có khả năng cập nhập 
+-- Để tạo một "updatable view" trong SQL, cần phải đảm bảo rằng các điều kiện sau được thỏa mãn:
+-- View phải được tạo từ một số bảng cơ sở dữ liệu.
+-- View không được chứa các phép toán tổng hợp như GROUP BY hoặc HAVING.
+-- Các cột được trả về trong view phải có thể được định danh một cách duy nhất (ví dụ: không được sử dụng các biểu thức phức tạp).
+-- các thao tác cập nhật (INSERT, UPDATE, DELETE) trực tiếp trên view đó.
+
+create view  vendor_address 
+as select vendor_id , vendor_address1,vendor_address2
+from vendors ;
+
+
+select * from vendor_address ; 
+
+-- câu 6 
+update vendor_address
+set vendor_address2 = 'Ste 260' 
+where vendor_id = 4 ; 
