@@ -1,3 +1,4 @@
+
 -- chương 12 tạo bảng để xem mà ko làm thay đổi dữ liệu bên trong
 use ap_1;
 -- Bài 1: Gọi tên nhà cung cấp , thứ tự hóa đơn , tổng hóa đơn , tổng tiền còn nợ 
@@ -49,3 +50,74 @@ select * from vendor_address ;
 update vendor_address
 set vendor_address2 = 'Ste 260' 
 where vendor_id = 4 ; 
+
+
+
+----
+-- chương 16 Cách tạo trình kích hoạt và sự kiện
+-- Câu lệnh tạo trình kích hoạt  sửa tên trạng thái viết hoa hỗn hợp
+use ap_1; 
+Drop procedure if exists  vendors_before_update ;
+DELIMITER // 
+CREATE TRIGGER vendors_before_update 
+BEFORE UPDATE ON vendors 
+FOR EACH ROW 
+BEGIN 
+	SET NEW.vendor_state = UPPER(NEW.vendor_state); 
+END//  
+
+
+-- Trình kích hoạt xác thực số lượng mục hàng khi cập nhật hóa đơn
+Drop trigger if exists  invoices_before_update;
+DELIMITER // 
+CREATE TRIGGER invoices_before_update 
+	BEFORE UPDATE ON invoices 
+	FOR EACH ROW 
+BEGIN 
+	DECLARE sum_line_item_amount DECIMAL(9,2); 
+	SELECT SUM(line_item_amount) 
+	INTO sum_line_item_amount 
+	FROM invoice_line_items 
+	WHERE invoice_id = NEW.invoice_id; 
+	IF sum_line_item_amount != NEW.invoice_total THEN 
+		Signal SQLSTATE 'HYOOO' 
+		SET MESSAGE_TEXT = 'Line item total must match invoice total.'; 
+	END IF; 
+END// 
+
+UPDATE invoices 
+SET invoice_total = 600 
+WHERE invoice_id= 100 
+
+select invoice_total
+from invoices
+where invoice_id = 100;
+
+select * from invoices where invoice_id = 100; 
+select * from invoice_line_items where invoice_id =100;
+-- Báo cáo tạo bảng kiểm tra cho các hành động trên bảng hóa đơn
+drop table if exists invoices_audit
+CREATE TABLE invoices_audit
+(
+	vendor_id         INT             Not null, 
+    invoice_number 	  VARCHAR(50)	  NOT NULL,
+	invoice_total 	  DECIMAL(9, 2)   NOT NULL, 
+    action_type       varchar(50)     not null, 
+    action_date       datetime        not null 
+)
+
+select * from invoices_audit ;
+-- Hai trình kích hoạt AFTER chèn hàng vào bảng kiểm tra
+drop trigger if exists invoices_after_insert ;
+DELIMITER // 
+CREATE TRIGGER invoices_after_insert 
+    AFTER INSERT ON invoices 
+	FOR EACH ROW 
+BEGIN 
+	INSERT INTO invoices_audit VALUES 
+	(NEW.vendor_id, NEW.invoice_number, NEW.invoice_total, 
+	'INSERTED', NOW()); 
+END// 
+
+drop trigger if exists invoices_after_delete ; 
+delimiter // 
